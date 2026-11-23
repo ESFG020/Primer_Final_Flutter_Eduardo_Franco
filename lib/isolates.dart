@@ -1,52 +1,91 @@
-import 'dart:math';
-
 import 'package:built_collection/built_collection.dart';
+import 'package:characters/characters.dart';
 import 'package:flutter/foundation.dart';
 
 import 'model.dart';
 import 'utils.dart';
 
-final _random = Random();
-
-/// Explores crossword solutions by repeatedly trying random word placements
-/// in a background isolate, yielding each valid [Crossword] found until 80%
-/// of the grid's cells are filled.
+/// Explores crossword solutions using a [WorkQueue], trying candidate words
+/// in a background isolate, and yields each valid [Crossword] found until
+/// there are no more locations or words to try.
 Stream<Crossword> exploreCrosswordSolutions({
   required Crossword crossword,
   required BuiltSet<String> wordList,
 }) async* {
-  while (crossword.characters.length <
-      crossword.width * crossword.height * 0.8) {
-    final candidate = await compute(_generateCandidate, (crossword, wordList));
-    if (candidate != null) {
-      crossword = candidate;
-      yield crossword;
+  final start = DateTime.now();
+  var workQueue = WorkQueue.from(
+    crossword: crossword,
+    candidateWords: wordList,
+    startLocation: Location.at(0, 0),
+  );
+
+  while (!workQueue.isCompleted) {
+    final location = workQueue.locationsToTry.keys
+        .toBuiltSet()
+        .randomElement();
+    try {
+      final result = await compute(_tryLocation, (workQueue, location));
+      if (result != null) {
+        workQueue = workQueue.updateFrom(result);
+        yield result;
+      } else {
+        workQueue = workQueue.remove(location);
+      }
+    } catch (e) {
+      debugPrint('Error running isolate: $e');
+      workQueue = workQueue.remove(location);
     }
   }
 
-  yield crossword;
+  debugPrint(
+    '${crossword.width} x ${crossword.height} Crossword generation took: '
+    '${DateTime.now().difference(start).formatted}',
+  );
 }
 
-/// Runs in a background isolate. Tries up to 1000 random placements and
-/// returns the first valid one, or null if none fit.
-Crossword? _generateCandidate((Crossword, BuiltSet<String>) args) {
-  final (crossword, wordList) = args;
-  for (var i = 0; i < 1000; i++) {
-    final word = wordList.randomElement();
-    final direction = _random.nextBool() ? Direction.across : Direction.down;
-    final location = Location.at(
-      _random.nextInt(crossword.width),
-      _random.nextInt(crossword.height),
-    );
+/// Runs in a background isolate. Tries to place a word through [location],
+/// returning the new crossword, or null if no candidate word fits.
+Crossword? _tryLocation((WorkQueue, Location) workMessage) {
+  final (workQueue, location) = workMessage;
+  final direction = workQueue.locationsToTry[location]!;
+  final target = workQueue.crossword.characters[location];
 
-    final candidate = crossword.addWord(
-      word: word,
+  // An empty location: start the crossword with any word.
+  if (target == null) {
+    return workQueue.crossword.addWord(
       direction: direction,
       location: location,
+      word: workQueue.candidateWords.randomElement(),
     );
-    if (candidate != null) {
-      return candidate;
-    }
   }
+
+  // Only words containing the target character can cross this location.
+  final words = workQueue.candidateWords.toBuiltList().rebuild(
+    (b) => b
+      ..where((word) => word.characters.contains(target.character))
+      ..shuffle(),
+  );
+
+  var tryCount = 0;
+  for (final word in words) {
+    tryCount++;
+    for (final (index, character) in word.characters.indexed) {
+      if (character != target.character) continue;
+
+      final candidate = workQueue.crossword.addWord(
+        location: switch (direction) {
+          Direction.across => location.leftOffset(index),
+          Direction.down => location.upOffset(index),
+        },
+        word: word,
+        direction: direction,
+      );
+      if (candidate != null) {
+        return candidate;
+      }
+    }
+    if (tryCount >= 1000) break;
+  }
+
   return null;
 }
