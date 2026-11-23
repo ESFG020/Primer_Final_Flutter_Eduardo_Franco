@@ -172,9 +172,80 @@ abstract class Crossword implements Built<Crossword, CrosswordBuilder> {
   /// The characters by location. Useful for displaying the crossword.
   BuiltMap<Location, CrosswordCharacter> get characters;
 
+  /// Checks if this crossword is valid, following the English crossword
+  /// tradition.
+  bool get valid {
+    // Check that there are no duplicate words.
+    final wordSet = words.map((word) => word.word).toBuiltSet();
+    if (wordSet.length != words.length) {
+      return false;
+    }
+
+    for (final MapEntry(key: location, value: character)
+        in characters.entries) {
+      // All characters must be a part of an across or down word.
+      if (character.acrossWord == null && character.downWord == null) {
+        return false;
+      }
+
+      // All characters must be within the crossword puzzle.
+      // No drawing outside the lines.
+      if (location.x < 0 ||
+          location.y < 0 ||
+          location.x >= width ||
+          location.y >= height) {
+        return false;
+      }
+
+      // Characters above and below this character must be related
+      // by a vertical word.
+      if (characters[location.up] case final up?) {
+        if (character.downWord == null) {
+          return false;
+        }
+        if (up.downWord != character.downWord) {
+          return false;
+        }
+      }
+
+      if (characters[location.down] case final down?) {
+        if (character.downWord == null) {
+          return false;
+        }
+        if (down.downWord != character.downWord) {
+          return false;
+        }
+      }
+
+      // Characters to the left and right of this character must be
+      // related by a horizontal word.
+      final left = characters[location.left];
+      if (left != null) {
+        if (character.acrossWord == null) {
+          return false;
+        }
+        if (left.acrossWord != character.acrossWord) {
+          return false;
+        }
+      }
+
+      final right = characters[location.right];
+      if (right != null) {
+        if (character.acrossWord == null) {
+          return false;
+        }
+        if (right.acrossWord != character.acrossWord) {
+          return false;
+        }
+      }
+    }
+
+    return true;
+  }
+
   /// Add a word to the crossword at the given location and direction.
-  /// Returns this unchanged if the word doesn't fit.
-  Crossword addWord({
+  /// Returns null if the word can't be added to the crossword.
+  Crossword? addWord({
     required Location location,
     required String word,
     required Direction direction,
@@ -182,24 +253,13 @@ abstract class Crossword implements Built<Crossword, CrosswordBuilder> {
     // Require that the word is not empty and not already in the crossword.
     if (word.isEmpty ||
         words.map((crosswordWord) => crosswordWord.word).contains(word)) {
-      return this;
+      return null;
     }
 
     final wordCharacters = word.characters;
+    bool overlap = false;
 
-    // Require that the word fits inside the grid.
-    final end = switch (direction) {
-      Direction.across => location.rightOffset(wordCharacters.length - 1),
-      Direction.down => location.downOffset(wordCharacters.length - 1),
-    };
-    if (location.x < 0 ||
-        location.y < 0 ||
-        end.x >= width ||
-        end.y >= height) {
-      return this;
-    }
-
-    // Check that the word doesn't clash with characters already placed.
+    // Check that the word fits in the crossword.
     for (final (index, character) in wordCharacters.indexed) {
       final characterLocation = switch (direction) {
         Direction.across => location.rightOffset(index),
@@ -208,17 +268,23 @@ abstract class Crossword implements Built<Crossword, CrosswordBuilder> {
 
       final target = characters[characterLocation];
       if (target != null) {
+        overlap = true;
         if (target.character != character) {
-          return this;
+          return null;
         }
         if (direction == Direction.across && target.acrossWord != null ||
             direction == Direction.down && target.downWord != null) {
-          return this;
+          return null;
         }
       }
     }
 
-    return rebuild(
+    // Every word after the first must cross an existing word.
+    if (words.isNotEmpty && !overlap) {
+      return null;
+    }
+
+    final candidate = rebuild(
       (b) => b
         ..words.add(
           CrosswordWord.word(
@@ -228,6 +294,12 @@ abstract class Crossword implements Built<Crossword, CrosswordBuilder> {
           ),
         ),
     );
+
+    if (candidate.valid) {
+      return candidate;
+    } else {
+      return null;
+    }
   }
 
   /// As a finalize step, fill in the characters map.

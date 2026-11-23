@@ -109,14 +109,14 @@ abstract class _$Size extends $Notifier<CrosswordSize> {
   }
 }
 
-/// A provider that generates a crossword by placing random words at random
-/// locations until 80% of the grid is filled.
+/// A provider that generates a valid crossword in a background isolate,
+/// streaming each step until 80% of the grid is filled.
 
 @ProviderFor(crossword)
 final crosswordProvider = CrosswordProvider._();
 
-/// A provider that generates a crossword by placing random words at random
-/// locations until 80% of the grid is filled.
+/// A provider that generates a valid crossword in a background isolate,
+/// streaming each step until 80% of the grid is filled.
 
 final class CrosswordProvider
     extends
@@ -126,8 +126,8 @@ final class CrosswordProvider
           Stream<model.Crossword>
         >
     with $FutureModifier<model.Crossword>, $StreamProvider<model.Crossword> {
-  /// A provider that generates a crossword by placing random words at random
-  /// locations until 80% of the grid is filled.
+  /// A provider that generates a valid crossword in a background isolate,
+  /// streaming each step until 80% of the grid is filled.
   CrosswordProvider._()
     : super(
         from: null,
@@ -154,4 +154,4 @@ final class CrosswordProvider
   }
 }
 
-String _$crosswordHash() => r'5de9f05091b3f0dad7c14a322ba090df2e63fae0';
+String _$crosswordHash() => r'8e2df416519f01ee1d6c1b64659f687d37cc07f2';
