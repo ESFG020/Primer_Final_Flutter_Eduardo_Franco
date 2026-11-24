@@ -1,10 +1,8 @@
 import 'dart:convert';
-import 'dart:math';
 
 import 'package:built_collection/built_collection.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
-import 'package:riverpod/riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import 'isolates.dart';
@@ -56,39 +54,11 @@ class Size extends _$Size {
   }
 }
 
-/// The number of background workers to use for crossword generation.
-enum BackgroundWorkers {
-  one(1),
-  two(2),
-  four(4),
-  eight(8),
-  sixteen(16),
-  thirtyTwo(32),
-  sixtyFour(64),
-  oneTwentyEight(128);
-
-  const BackgroundWorkers(this.count);
-
-  final int count;
-  String get label => count.toString();
-}
-
-/// A provider that holds the maximum number of parallel background workers.
-@Riverpod(keepAlive: true)
-class WorkerCount extends _$WorkerCount {
-  @override
-  BackgroundWorkers build() => BackgroundWorkers.four;
-
-  void setCount(BackgroundWorkers count) {
-    state = count;
-  }
-}
-
 /// A provider that generates a crossword in background isolates, streaming
 /// the [model.WorkQueue] state on each step of the search.
 @riverpod
 Stream<model.WorkQueue> workQueue(Ref ref) async* {
-  final workers = ref.watch(workerCountProvider);
+  const backgroundWorkerCount = 4;
   final size = ref.watch(sizeProvider);
   final wordListAsync = ref.watch(wordListProvider);
 
@@ -102,14 +72,11 @@ Stream<model.WorkQueue> workQueue(Ref ref) async* {
     startLocation: model.Location.at(0, 0),
   );
 
-  ref.read(startTimeProvider.notifier).start();
-  ref.read(endTimeProvider.notifier).clear();
-
   yield* wordListAsync.when(
     data: (wordList) => exploreCrosswordSolutions(
       crossword: emptyCrossword,
       wordList: wordList,
-      maxWorkerCount: workers.count,
+      maxWorkerCount: backgroundWorkerCount,
     ),
     error: (error, stackTrace) async* {
       debugPrint('Error loading word list: $error');
@@ -119,95 +86,92 @@ Stream<model.WorkQueue> workQueue(Ref ref) async* {
       yield emptyWorkQueue;
     },
   );
-
-  ref.read(endTimeProvider.notifier).end();
 }
 
-/// The time the current crossword generation started.
-@Riverpod(keepAlive: true)
-class StartTime extends _$StartTime {
-  @override
-  DateTime? build() => null;
-
-  void start() {
-    state = DateTime.now();
-  }
-}
-
-/// The time the current crossword generation ended, or null while running.
-@Riverpod(keepAlive: true)
-class EndTime extends _$EndTime {
-  @override
-  DateTime? build() => null;
-
-  void clear() {
-    state = null;
-  }
-
-  void end() {
-    state = DateTime.now();
-  }
-}
-
-/// Fraction of the grid that a finished crossword typically covers. Used to
-/// estimate how far along the generation is.
-const _estimatedTotalCoverage = 0.54;
-
-/// An estimate of the time remaining until crossword generation completes.
+/// The puzzle the player is solving. Starts empty, and is built from the
+/// generated crossword once generation completes.
 @riverpod
-Duration expectedRemainingTime(Ref ref) {
-  final startTime = ref.watch(startTimeProvider);
-  final endTime = ref.watch(endTimeProvider);
-  final workQueueAsync = ref.watch(workQueueProvider);
-
-  return workQueueAsync.when(
-    data: (workQueue) {
-      if (startTime == null || endTime != null || workQueue.isCompleted) {
-        return Duration.zero;
-      }
-      try {
-        final soFar = DateTime.now().difference(startTime);
-        final completedPercentage = min(
-          0.99,
-          (workQueue.crossword.characters.length /
-              (workQueue.crossword.width * workQueue.crossword.height) /
-              _estimatedTotalCoverage),
-        );
-        final expectedTotal = soFar.inSeconds / completedPercentage;
-        final expectedRemaining = expectedTotal - soFar.inSeconds;
-        return Duration(seconds: expectedRemaining.toInt());
-      } catch (e) {
-        // Division by zero before any characters are placed.
-        return Duration.zero;
-      }
-    },
-    error: (error, stackTrace) => Duration.zero,
-    loading: () => Duration.zero,
-  );
-}
-
-/// Whether to show the crossword generation info overlay.
-@Riverpod(keepAlive: true)
-class ShowDisplayInfo extends _$ShowDisplayInfo {
+class Puzzle extends _$Puzzle {
   @override
-  bool build() => true;
+  model.CrosswordPuzzleGame build() {
+    final size = ref.watch(sizeProvider);
+    final wordList = ref.watch(wordListProvider).value;
+    final workQueue = ref.watch(workQueueProvider).value;
 
-  void toggle() {
-    state = !state;
-  }
-}
+    // Only build a real puzzle once the crossword is finished.
+    if (wordList != null && workQueue != null && workQueue.isCompleted) {
+      final crossword = workQueue.crossword;
+      compute(_puzzleFromCrosswordTrampoline, (crossword, wordList)).then((
+        puzzle,
+      ) {
+        // Ignore the result if the crossword changed while it was computed.
+        if (ref.mounted) {
+          state = puzzle;
+        }
+      });
+    }
 
-/// Display information about the current state of crossword generation.
-@riverpod
-class DisplayInfo extends _$DisplayInfo {
-  @override
-  model.DisplayInfo build() => ref.watch(
-    workQueueProvider.select(
-      (workQueueAsync) => workQueueAsync.when(
-        data: (workQueue) => model.DisplayInfo.from(workQueue: workQueue),
-        error: (error, stackTrace) => model.DisplayInfo.empty,
-        loading: () => model.DisplayInfo.empty,
+    return model.CrosswordPuzzleGame.from(
+      crossword: model.Crossword.crossword(
+        width: size.width,
+        height: size.height,
       ),
-    ),
+      candidateWords: BuiltSet<String>(),
+    );
+  }
+
+  /// Select [word] for the slot at [location] in [direction].
+  Future<void> selectWord({
+    required model.Location location,
+    required String word,
+    required model.Direction direction,
+  }) async {
+    final candidate = await compute(_puzzleSelectWordTrampoline, (
+      state,
+      location,
+      word,
+      direction,
+    ));
+
+    if (!ref.mounted) return;
+    if (candidate != null) {
+      state = candidate;
+    } else {
+      debugPrint('Invalid word selection: $word');
+    }
+  }
+
+  /// Whether [word] can be selected for the slot at [location] in
+  /// [direction].
+  bool canSelectWord({
+    required model.Location location,
+    required String word,
+    required model.Direction direction,
+  }) {
+    return state.canSelectWord(
+      location: location,
+      word: word,
+      direction: direction,
+    );
+  }
+}
+
+/// Builds a puzzle in a background isolate.
+model.CrosswordPuzzleGame _puzzleFromCrosswordTrampoline(
+  (model.Crossword, BuiltSet<String>) inputs,
+) => model.CrosswordPuzzleGame.from(
+  crossword: inputs.$1,
+  candidateWords: inputs.$2,
+);
+
+/// Applies a word selection in a background isolate.
+model.CrosswordPuzzleGame? _puzzleSelectWordTrampoline(
+  (model.CrosswordPuzzleGame, model.Location, String, model.Direction) inputs,
+) {
+  final (puzzle, location, word, direction) = inputs;
+  return puzzle.selectWord(
+    location: location,
+    word: word,
+    direction: direction,
   );
 }

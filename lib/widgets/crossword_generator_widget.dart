@@ -5,8 +5,10 @@ import 'package:two_dimensional_scrollables/two_dimensional_scrollables.dart';
 import '../model.dart';
 import '../providers.dart';
 
-class CrosswordWidget extends ConsumerWidget {
-  const CrosswordWidget({super.key});
+/// Shows the crossword while it is being generated. Occupied cells show a
+/// dot so the answers aren't revealed before the puzzle starts.
+class CrosswordGeneratorWidget extends ConsumerWidget {
+  const CrosswordGeneratorWidget({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -66,7 +68,7 @@ class CrosswordWidget extends ConsumerWidget {
                         ? colorScheme.onPrimary
                         : colorScheme.primary,
                   ),
-                  child: Text(character.character),
+                  child: Text('•'), // https://www.compart.com/en/unicode/U+2022
                 ),
               ),
             );

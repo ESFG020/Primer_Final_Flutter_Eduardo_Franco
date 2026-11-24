@@ -2,33 +2,51 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../providers.dart';
-import 'crossword_info_widget.dart';
-import 'crossword_widget.dart';
+import 'crossword_generator_widget.dart';
+import 'crossword_puzzle_widget.dart';
+import 'puzzle_completed_widget.dart';
 
-class CrosswordGeneratorApp extends StatelessWidget {
-  const CrosswordGeneratorApp({super.key});
+class CrosswordPuzzleApp extends StatelessWidget {
+  const CrosswordPuzzleApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return _EagerInitialization(
       child: Scaffold(
         appBar: AppBar(
-          actions: [_CrosswordGeneratorMenu()],
+          actions: [_CrosswordPuzzleAppMenu()],
           titleTextStyle: TextStyle(
             color: Theme.of(context).colorScheme.primary,
             fontSize: 16,
             fontWeight: FontWeight.bold,
           ),
-          title: Text('Crossword Generator'),
+          title: Text('Crossword Puzzle'),
         ),
         body: SafeArea(
           child: Consumer(
             builder: (context, ref, _) {
-              return Stack(
-                children: [
-                  Positioned.fill(child: CrosswordWidget()),
-                  if (ref.watch(showDisplayInfoProvider)) CrosswordInfoWidget(),
-                ],
+              final workQueueAsync = ref.watch(workQueueProvider);
+              final puzzleReady = ref.watch(
+                puzzleProvider.select(
+                  (puzzle) => puzzle.crossword.words.isNotEmpty,
+                ),
+              );
+              final puzzleSolved = ref.watch(
+                puzzleProvider.select((puzzle) => puzzle.solved),
+              );
+
+              return workQueueAsync.when(
+                data: (workQueue) {
+                  if (puzzleSolved) {
+                    return PuzzleCompletedWidget();
+                  }
+                  if (workQueue.isCompleted && puzzleReady) {
+                    return CrosswordPuzzleWidget();
+                  }
+                  return CrosswordGeneratorWidget();
+                },
+                error: (error, stackTrace) => Center(child: Text('$error')),
+                loading: () => Center(child: CircularProgressIndicator()),
               );
             },
           ),
@@ -49,7 +67,7 @@ class _EagerInitialization extends ConsumerWidget {
   }
 }
 
-class _CrosswordGeneratorMenu extends ConsumerWidget {
+class _CrosswordPuzzleAppMenu extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) => MenuAnchor(
     menuChildren: [
@@ -61,21 +79,6 @@ class _CrosswordGeneratorMenu extends ConsumerWidget {
               : Icon(Icons.radio_button_unchecked_outlined),
           child: Text(entry.label),
         ),
-      for (final count in BackgroundWorkers.values)
-        MenuItemButton(
-          leadingIcon: count == ref.watch(workerCountProvider)
-              ? Icon(Icons.radio_button_checked_outlined)
-              : Icon(Icons.radio_button_unchecked_outlined),
-          onPressed: () => ref.read(workerCountProvider.notifier).setCount(count),
-          child: Text(count.label),
-        ),
-      MenuItemButton(
-        leadingIcon: ref.watch(showDisplayInfoProvider)
-            ? Icon(Icons.check_box_outlined)
-            : Icon(Icons.check_box_outline_blank_outlined),
-        onPressed: () => ref.read(showDisplayInfoProvider.notifier).toggle(),
-        child: Text('Display Info'),
-      ),
     ],
     builder: (context, controller, child) => IconButton(
       onPressed: () =>
