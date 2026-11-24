@@ -109,13 +109,71 @@ abstract class _$Size extends $Notifier<CrosswordSize> {
   }
 }
 
-/// A provider that generates a crossword in a background isolate, streaming
+/// A provider that holds the maximum number of parallel background workers.
+
+@ProviderFor(WorkerCount)
+final workerCountProvider = WorkerCountProvider._();
+
+/// A provider that holds the maximum number of parallel background workers.
+final class WorkerCountProvider
+    extends $NotifierProvider<WorkerCount, BackgroundWorkers> {
+  /// A provider that holds the maximum number of parallel background workers.
+  WorkerCountProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'workerCountProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$workerCountHash();
+
+  @$internal
+  @override
+  WorkerCount create() => WorkerCount();
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(BackgroundWorkers value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<BackgroundWorkers>(value),
+    );
+  }
+}
+
+String _$workerCountHash() => r'3dc0ddc6ccf68a2b7dfc65f6b1ad93f353a4c746';
+
+/// A provider that holds the maximum number of parallel background workers.
+
+abstract class _$WorkerCount extends $Notifier<BackgroundWorkers> {
+  BackgroundWorkers build();
+  @$mustCallSuper
+  @override
+  WhenComplete runBuild() {
+    final ref = this.ref as $Ref<BackgroundWorkers, BackgroundWorkers>;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<BackgroundWorkers, BackgroundWorkers>,
+              BackgroundWorkers,
+              Object?,
+              Object?
+            >;
+    return element.handleCreate(ref, build);
+  }
+}
+
+/// A provider that generates a crossword in background isolates, streaming
 /// the [model.WorkQueue] state on each step of the search.
 
 @ProviderFor(workQueue)
 final workQueueProvider = WorkQueueProvider._();
 
-/// A provider that generates a crossword in a background isolate, streaming
+/// A provider that generates a crossword in background isolates, streaming
 /// the [model.WorkQueue] state on each step of the search.
 
 final class WorkQueueProvider
@@ -126,7 +184,7 @@ final class WorkQueueProvider
           Stream<model.WorkQueue>
         >
     with $FutureModifier<model.WorkQueue>, $StreamProvider<model.WorkQueue> {
-  /// A provider that generates a crossword in a background isolate, streaming
+  /// A provider that generates a crossword in background isolates, streaming
   /// the [model.WorkQueue] state on each step of the search.
   WorkQueueProvider._()
     : super(
@@ -154,7 +212,7 @@ final class WorkQueueProvider
   }
 }
 
-String _$workQueueHash() => r'3e484a5afe91003b1523ffb42caa6b24967376a6';
+String _$workQueueHash() => r'dca73cc7fb2cef3f5dcfdcc3a0926167e88c1083';
 
 /// The time the current crossword generation started.
 

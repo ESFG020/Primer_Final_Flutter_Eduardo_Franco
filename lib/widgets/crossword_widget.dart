@@ -37,16 +37,36 @@ class CrosswordWidget extends ConsumerWidget {
             ),
           );
 
+          final explorationCell = ref.watch(
+            workQueueProvider.select(
+              (workQueueAsync) => workQueueAsync.when(
+                data: (workQueue) =>
+                    workQueue.locationsToTry.keys.contains(location),
+                error: (error, stackTrace) => false,
+                loading: () => false,
+              ),
+            ),
+          );
+
           if (character != null) {
-            return Container(
-              color: Theme.of(context).colorScheme.onPrimary,
+            final colorScheme = Theme.of(context).colorScheme;
+            return AnimatedContainer(
+              duration: Durations.extralong1,
+              curve: Curves.easeInOut,
+              color: explorationCell
+                  ? colorScheme.primary
+                  : colorScheme.onPrimary,
               child: Center(
-                child: Text(
-                  character.character,
+                child: AnimatedDefaultTextStyle(
+                  duration: Durations.extralong1,
+                  curve: Curves.easeInOut,
                   style: TextStyle(
                     fontSize: 24,
-                    color: Theme.of(context).colorScheme.primary,
+                    color: explorationCell
+                        ? colorScheme.onPrimary
+                        : colorScheme.primary,
                   ),
+                  child: Text(character.character),
                 ),
               ),
             );

@@ -56,10 +56,39 @@ class Size extends _$Size {
   }
 }
 
-/// A provider that generates a crossword in a background isolate, streaming
+/// The number of background workers to use for crossword generation.
+enum BackgroundWorkers {
+  one(1),
+  two(2),
+  four(4),
+  eight(8),
+  sixteen(16),
+  thirtyTwo(32),
+  sixtyFour(64),
+  oneTwentyEight(128);
+
+  const BackgroundWorkers(this.count);
+
+  final int count;
+  String get label => count.toString();
+}
+
+/// A provider that holds the maximum number of parallel background workers.
+@Riverpod(keepAlive: true)
+class WorkerCount extends _$WorkerCount {
+  @override
+  BackgroundWorkers build() => BackgroundWorkers.four;
+
+  void setCount(BackgroundWorkers count) {
+    state = count;
+  }
+}
+
+/// A provider that generates a crossword in background isolates, streaming
 /// the [model.WorkQueue] state on each step of the search.
 @riverpod
 Stream<model.WorkQueue> workQueue(Ref ref) async* {
+  final workers = ref.watch(workerCountProvider);
   final size = ref.watch(sizeProvider);
   final wordListAsync = ref.watch(wordListProvider);
 
@@ -80,6 +109,7 @@ Stream<model.WorkQueue> workQueue(Ref ref) async* {
     data: (wordList) => exploreCrosswordSolutions(
       crossword: emptyCrossword,
       wordList: wordList,
+      maxWorkerCount: workers.count,
     ),
     error: (error, stackTrace) async* {
       debugPrint('Error loading word list: $error');

@@ -12,6 +12,7 @@ class CrosswordInfoWidget extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final size = ref.watch(sizeProvider);
+    final workerCount = ref.watch(workerCountProvider);
     final displayInfo = ref.watch(displayInfoProvider);
     final startTime = ref.watch(startTimeProvider);
     final endTime = ref.watch(endTimeProvider);
@@ -39,6 +40,10 @@ class CrosswordInfoWidget extends ConsumerWidget {
                     _CrosswordInfoRichText(
                       label: 'Grid Size',
                       value: '${size.width} x ${size.height}',
+                    ),
+                    _CrosswordInfoRichText(
+                      label: 'Max worker count',
+                      value: workerCount.label,
                     ),
                     _CrosswordInfoRichText(
                       label: 'Words in grid',
