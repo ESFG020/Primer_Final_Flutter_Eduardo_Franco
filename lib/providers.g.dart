@@ -109,49 +109,326 @@ abstract class _$Size extends $Notifier<CrosswordSize> {
   }
 }
 
-/// A provider that generates a valid crossword in a background isolate,
-/// streaming each step until 80% of the grid is filled.
+/// A provider that generates a crossword in a background isolate, streaming
+/// the [model.WorkQueue] state on each step of the search.
 
-@ProviderFor(crossword)
-final crosswordProvider = CrosswordProvider._();
+@ProviderFor(workQueue)
+final workQueueProvider = WorkQueueProvider._();
 
-/// A provider that generates a valid crossword in a background isolate,
-/// streaming each step until 80% of the grid is filled.
+/// A provider that generates a crossword in a background isolate, streaming
+/// the [model.WorkQueue] state on each step of the search.
 
-final class CrosswordProvider
+final class WorkQueueProvider
     extends
         $FunctionalProvider<
-          AsyncValue<model.Crossword>,
-          model.Crossword,
-          Stream<model.Crossword>
+          AsyncValue<model.WorkQueue>,
+          model.WorkQueue,
+          Stream<model.WorkQueue>
         >
-    with $FutureModifier<model.Crossword>, $StreamProvider<model.Crossword> {
-  /// A provider that generates a valid crossword in a background isolate,
-  /// streaming each step until 80% of the grid is filled.
-  CrosswordProvider._()
+    with $FutureModifier<model.WorkQueue>, $StreamProvider<model.WorkQueue> {
+  /// A provider that generates a crossword in a background isolate, streaming
+  /// the [model.WorkQueue] state on each step of the search.
+  WorkQueueProvider._()
     : super(
         from: null,
         argument: null,
         retry: null,
-        name: r'crosswordProvider',
+        name: r'workQueueProvider',
         isAutoDispose: true,
         dependencies: null,
         $allTransitiveDependencies: null,
       );
 
   @override
-  String debugGetCreateSourceHash() => _$crosswordHash();
+  String debugGetCreateSourceHash() => _$workQueueHash();
 
   @$internal
   @override
-  $StreamProviderElement<model.Crossword> $createElement(
+  $StreamProviderElement<model.WorkQueue> $createElement(
     $ProviderPointer pointer,
   ) => $StreamProviderElement(pointer);
 
   @override
-  Stream<model.Crossword> create(Ref ref) {
-    return crossword(ref);
+  Stream<model.WorkQueue> create(Ref ref) {
+    return workQueue(ref);
   }
 }
 
-String _$crosswordHash() => r'8e2df416519f01ee1d6c1b64659f687d37cc07f2';
+String _$workQueueHash() => r'3e484a5afe91003b1523ffb42caa6b24967376a6';
+
+/// The time the current crossword generation started.
+
+@ProviderFor(StartTime)
+final startTimeProvider = StartTimeProvider._();
+
+/// The time the current crossword generation started.
+final class StartTimeProvider extends $NotifierProvider<StartTime, DateTime?> {
+  /// The time the current crossword generation started.
+  StartTimeProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'startTimeProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$startTimeHash();
+
+  @$internal
+  @override
+  StartTime create() => StartTime();
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(DateTime? value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<DateTime?>(value),
+    );
+  }
+}
+
+String _$startTimeHash() => r'213692f63fec8e8a17b12c6946e8c62983d7818b';
+
+/// The time the current crossword generation started.
+
+abstract class _$StartTime extends $Notifier<DateTime?> {
+  DateTime? build();
+  @$mustCallSuper
+  @override
+  WhenComplete runBuild() {
+    final ref = this.ref as $Ref<DateTime?, DateTime?>;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<DateTime?, DateTime?>,
+              DateTime?,
+              Object?,
+              Object?
+            >;
+    return element.handleCreate(ref, build);
+  }
+}
+
+/// The time the current crossword generation ended, or null while running.
+
+@ProviderFor(EndTime)
+final endTimeProvider = EndTimeProvider._();
+
+/// The time the current crossword generation ended, or null while running.
+final class EndTimeProvider extends $NotifierProvider<EndTime, DateTime?> {
+  /// The time the current crossword generation ended, or null while running.
+  EndTimeProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'endTimeProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$endTimeHash();
+
+  @$internal
+  @override
+  EndTime create() => EndTime();
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(DateTime? value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<DateTime?>(value),
+    );
+  }
+}
+
+String _$endTimeHash() => r'ae42bbb0a46ace7da0f1f3715b71143c1d759d1f';
+
+/// The time the current crossword generation ended, or null while running.
+
+abstract class _$EndTime extends $Notifier<DateTime?> {
+  DateTime? build();
+  @$mustCallSuper
+  @override
+  WhenComplete runBuild() {
+    final ref = this.ref as $Ref<DateTime?, DateTime?>;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<DateTime?, DateTime?>,
+              DateTime?,
+              Object?,
+              Object?
+            >;
+    return element.handleCreate(ref, build);
+  }
+}
+
+/// An estimate of the time remaining until crossword generation completes.
+
+@ProviderFor(expectedRemainingTime)
+final expectedRemainingTimeProvider = ExpectedRemainingTimeProvider._();
+
+/// An estimate of the time remaining until crossword generation completes.
+
+final class ExpectedRemainingTimeProvider
+    extends $FunctionalProvider<Duration, Duration, Duration>
+    with $Provider<Duration> {
+  /// An estimate of the time remaining until crossword generation completes.
+  ExpectedRemainingTimeProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'expectedRemainingTimeProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$expectedRemainingTimeHash();
+
+  @$internal
+  @override
+  $ProviderElement<Duration> $createElement($ProviderPointer pointer) =>
+      $ProviderElement(pointer);
+
+  @override
+  Duration create(Ref ref) {
+    return expectedRemainingTime(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(Duration value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<Duration>(value),
+    );
+  }
+}
+
+String _$expectedRemainingTimeHash() =>
+    r'45f19e0d3e281c34cb54ed7f67cc783ec5073889';
+
+/// Whether to show the crossword generation info overlay.
+
+@ProviderFor(ShowDisplayInfo)
+final showDisplayInfoProvider = ShowDisplayInfoProvider._();
+
+/// Whether to show the crossword generation info overlay.
+final class ShowDisplayInfoProvider
+    extends $NotifierProvider<ShowDisplayInfo, bool> {
+  /// Whether to show the crossword generation info overlay.
+  ShowDisplayInfoProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'showDisplayInfoProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$showDisplayInfoHash();
+
+  @$internal
+  @override
+  ShowDisplayInfo create() => ShowDisplayInfo();
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(bool value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<bool>(value),
+    );
+  }
+}
+
+String _$showDisplayInfoHash() => r'2d1022c4613de81e6d5f0c2d9405cb50296d13d1';
+
+/// Whether to show the crossword generation info overlay.
+
+abstract class _$ShowDisplayInfo extends $Notifier<bool> {
+  bool build();
+  @$mustCallSuper
+  @override
+  WhenComplete runBuild() {
+    final ref = this.ref as $Ref<bool, bool>;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<bool, bool>,
+              bool,
+              Object?,
+              Object?
+            >;
+    return element.handleCreate(ref, build);
+  }
+}
+
+/// Display information about the current state of crossword generation.
+
+@ProviderFor(DisplayInfo)
+final displayInfoProvider = DisplayInfoProvider._();
+
+/// Display information about the current state of crossword generation.
+final class DisplayInfoProvider
+    extends $NotifierProvider<DisplayInfo, model.DisplayInfo> {
+  /// Display information about the current state of crossword generation.
+  DisplayInfoProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'displayInfoProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$displayInfoHash();
+
+  @$internal
+  @override
+  DisplayInfo create() => DisplayInfo();
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(model.DisplayInfo value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<model.DisplayInfo>(value),
+    );
+  }
+}
+
+String _$displayInfoHash() => r'42483707461b81e1dbafee1647cd45225dee2cc3';
+
+/// Display information about the current state of crossword generation.
+
+abstract class _$DisplayInfo extends $Notifier<model.DisplayInfo> {
+  model.DisplayInfo build();
+  @$mustCallSuper
+  @override
+  WhenComplete runBuild() {
+    final ref = this.ref as $Ref<model.DisplayInfo, model.DisplayInfo>;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<model.DisplayInfo, model.DisplayInfo>,
+              model.DisplayInfo,
+              Object?,
+              Object?
+            >;
+    return element.handleCreate(ref, build);
+  }
+}

@@ -1,8 +1,10 @@
 import 'dart:convert';
+import 'dart:math';
 
 import 'package:built_collection/built_collection.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:riverpod/riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import 'isolates.dart';
@@ -54,10 +56,10 @@ class Size extends _$Size {
   }
 }
 
-/// A provider that generates a valid crossword in a background isolate,
-/// streaming each step until 80% of the grid is filled.
+/// A provider that generates a crossword in a background isolate, streaming
+/// the [model.WorkQueue] state on each step of the search.
 @riverpod
-Stream<model.Crossword> crossword(Ref ref) async* {
+Stream<model.WorkQueue> workQueue(Ref ref) async* {
   final size = ref.watch(sizeProvider);
   final wordListAsync = ref.watch(wordListProvider);
 
@@ -65,6 +67,14 @@ Stream<model.Crossword> crossword(Ref ref) async* {
     width: size.width,
     height: size.height,
   );
+  final emptyWorkQueue = model.WorkQueue.from(
+    crossword: emptyCrossword,
+    candidateWords: BuiltSet<String>(),
+    startLocation: model.Location.at(0, 0),
+  );
+
+  ref.read(startTimeProvider.notifier).start();
+  ref.read(endTimeProvider.notifier).clear();
 
   yield* wordListAsync.when(
     data: (wordList) => exploreCrosswordSolutions(
@@ -73,10 +83,101 @@ Stream<model.Crossword> crossword(Ref ref) async* {
     ),
     error: (error, stackTrace) async* {
       debugPrint('Error loading word list: $error');
-      yield emptyCrossword;
+      yield emptyWorkQueue;
     },
     loading: () async* {
-      yield emptyCrossword;
+      yield emptyWorkQueue;
     },
+  );
+
+  ref.read(endTimeProvider.notifier).end();
+}
+
+/// The time the current crossword generation started.
+@Riverpod(keepAlive: true)
+class StartTime extends _$StartTime {
+  @override
+  DateTime? build() => null;
+
+  void start() {
+    state = DateTime.now();
+  }
+}
+
+/// The time the current crossword generation ended, or null while running.
+@Riverpod(keepAlive: true)
+class EndTime extends _$EndTime {
+  @override
+  DateTime? build() => null;
+
+  void clear() {
+    state = null;
+  }
+
+  void end() {
+    state = DateTime.now();
+  }
+}
+
+/// Fraction of the grid that a finished crossword typically covers. Used to
+/// estimate how far along the generation is.
+const _estimatedTotalCoverage = 0.54;
+
+/// An estimate of the time remaining until crossword generation completes.
+@riverpod
+Duration expectedRemainingTime(Ref ref) {
+  final startTime = ref.watch(startTimeProvider);
+  final endTime = ref.watch(endTimeProvider);
+  final workQueueAsync = ref.watch(workQueueProvider);
+
+  return workQueueAsync.when(
+    data: (workQueue) {
+      if (startTime == null || endTime != null || workQueue.isCompleted) {
+        return Duration.zero;
+      }
+      try {
+        final soFar = DateTime.now().difference(startTime);
+        final completedPercentage = min(
+          0.99,
+          (workQueue.crossword.characters.length /
+              (workQueue.crossword.width * workQueue.crossword.height) /
+              _estimatedTotalCoverage),
+        );
+        final expectedTotal = soFar.inSeconds / completedPercentage;
+        final expectedRemaining = expectedTotal - soFar.inSeconds;
+        return Duration(seconds: expectedRemaining.toInt());
+      } catch (e) {
+        // Division by zero before any characters are placed.
+        return Duration.zero;
+      }
+    },
+    error: (error, stackTrace) => Duration.zero,
+    loading: () => Duration.zero,
+  );
+}
+
+/// Whether to show the crossword generation info overlay.
+@Riverpod(keepAlive: true)
+class ShowDisplayInfo extends _$ShowDisplayInfo {
+  @override
+  bool build() => true;
+
+  void toggle() {
+    state = !state;
+  }
+}
+
+/// Display information about the current state of crossword generation.
+@riverpod
+class DisplayInfo extends _$DisplayInfo {
+  @override
+  model.DisplayInfo build() => ref.watch(
+    workQueueProvider.select(
+      (workQueueAsync) => workQueueAsync.when(
+        data: (workQueue) => model.DisplayInfo.from(workQueue: workQueue),
+        error: (error, stackTrace) => model.DisplayInfo.empty,
+        loading: () => model.DisplayInfo.empty,
+      ),
+    ),
   );
 }

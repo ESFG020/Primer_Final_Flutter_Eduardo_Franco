@@ -6,9 +6,9 @@ import 'model.dart';
 import 'utils.dart';
 
 /// Explores crossword solutions using a [WorkQueue], trying candidate words
-/// in a background isolate, and yields each valid [Crossword] found until
-/// there are no more locations or words to try.
-Stream<Crossword> exploreCrosswordSolutions({
+/// in a background isolate, and yields the updated [WorkQueue] on each
+/// iteration until there are no more locations or words to try.
+Stream<WorkQueue> exploreCrosswordSolutions({
   required Crossword crossword,
   required BuiltSet<String> wordList,
 }) async* {
@@ -27,7 +27,6 @@ Stream<Crossword> exploreCrosswordSolutions({
       final result = await compute(_tryLocation, (workQueue, location));
       if (result != null) {
         workQueue = workQueue.updateFrom(result);
-        yield result;
       } else {
         workQueue = workQueue.remove(location);
       }
@@ -35,6 +34,7 @@ Stream<Crossword> exploreCrosswordSolutions({
       debugPrint('Error running isolate: $e');
       workQueue = workQueue.remove(location);
     }
+    yield workQueue;
   }
 
   debugPrint(
